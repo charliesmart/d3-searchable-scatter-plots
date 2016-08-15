@@ -1,7 +1,7 @@
 # Searchable scatter plots for TrendCT
 By Charlie Smart
 
-** How to use this thing
+## How to use this thing
 
 1. Under "Data Configuration", change `csvLocation` to the path to your CSV, and change the rest of the variables to the corresponding column headers.
 
