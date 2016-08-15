@@ -1,0 +1,172 @@
+var margin, svg, wrap, x, y, dot, xAxis, yAxis, points, data, width, height;
+
+var gradeLevel = 'average.test.score..math.ela.pooled..in.grade.equiv',
+    income = 'grade.slope.pooled..grade.equivalent.std..gs.',
+    districtSize = 'se.mean_poolgs.',
+    townName = 'education.agency.name';
+
+// Load CSV
+d3.csv('ct-district.csv', init)
+
+// Initialize chart
+function init(csv) {
+    data = csv;
+
+    // Set margin
+    margin = {top: 10, right: 10, bottom: 30, left: 40};
+
+    // Create SVG
+    svg = d3.select('body')
+	.append('svg');
+
+    // Create chart wrap that is offest from window by specified margins
+    wrap = svg.append('g')
+	.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+    // Create groups for axes
+    wrap.append('g').classed('x axis', true);
+    wrap.append('g').classed('y axis', true);
+
+    // Create axes
+    xAxis = d3.axisBottom();
+    yAxis = d3.axisLeft()
+	.ticks(6)
+	.tickFormat(function(d) { return d + ' g'});
+
+    // Get extent of all variables
+    var xExtent = d3.extent(data, function(d, i) {return +d[income]}),
+	yExtent = d3.extent(data, function(d, i) {return +d[gradeLevel]}),
+	dotExtent = d3.extent(data, function(d, i) {return +d[districtSize]});
+
+    // Initialize scales
+    x = d3.scaleLinear().domain(xExtent);
+    y = d3.scaleLinear().domain(yExtent);
+    dot = d3.scaleLinear().domain(dotExtent).range([6, 20]);
+
+    // Create the data points
+    points = wrap.selectAll('.point')
+	.data(data)
+	.enter()
+	.append('circle')
+	.attr('fill', 'rgba(252,114,110,0.5)')
+	.attr('stroke', 'black')
+	.attr('stroke-width', 1)
+	.attr('r', function(d) {
+	    return dot(+d[districtSize]); 
+	})
+	.on('mouseenter', function() {
+	    var radius = parseInt(d3.select(this).attr('r'));
+	    console.log(radius);
+	    d3.select(this).attr('r', radius + 2);
+	}).on('mouseout', function() {
+	    var radius = parseInt(d3.select(this).attr('r'));
+	    console.log(radius);
+	    d3.select(this).attr('r', radius + -2);
+	});
+
+    // Initialize the searchability
+    searchInit();
+    
+    // Render the chart
+    render();
+}
+
+function render() {
+
+    // Get window dimensions
+    updateDim(window.innerWidth);
+
+    // Creat gridlines
+    yAxis.tickSizeInner(-width);
+
+    // Update scales based on dimensions
+    x.range([0, width]);
+    y.range([height, 0]);
+
+    // Resive svg based on dimensions
+    svg.attr('width', width + margin.left + margin.right)
+	.attr('height', height + margin.top + margin.bottom);
+
+    // Position the points
+    points.attr('cx', function(d) {
+	return x(+d[income]);
+    })
+	.attr('cy', function(d) {
+	    return y(+d[gradeLevel]);
+	})
+    
+    // Update axes based on new scales
+    xAxis.scale(x);
+    yAxis.scale(y);
+
+    wrap.select('.x.axis')
+	.attr('transform', 'translate(0, ' + height + ')')
+	.call(xAxis);
+
+    wrap.select('.y.axis')
+	.call(yAxis);
+
+    wrap.select('.y.axis')
+}
+
+function updateDim(winWidth) {
+    console.log(winWidth);
+    width = winWidth - margin.left - margin.right;
+    height = 400 - margin.top - margin.bottom;
+}
+
+function searchInit() {
+    var districts = [];
+
+    for (var i = 0; i < data.length; i++) {
+	districts.push(data[i][townName]);
+    }
+
+    var searchItems = new Bloodhound({
+	local: districts,
+	queryTokenizer: Bloodhound.tokenizers.whitespace,
+	datumTokenizer: Bloodhound.tokenizers.whitespace
+    });
+
+    
+    $('.search').typeahead({
+	highLight: true,
+    }, {
+	name: 'school-districts',
+	source: searchItems,
+    });
+}
+
+$(document).ready(function(){
+
+    // Listens for enter in textbox
+    $('.search').keyup(function(e) {
+	if (e.keyCode == 13) {
+	    searchGraph();
+	}
+    });
+
+    // Listens for search click
+    $('.searchButton').on('click', function(){
+	searchGraph();
+	
+    });  
+});
+
+function searchGraph() {
+    
+    var searchVal = $('#search').val();
+    
+    points.style('fill', 'rgba(252,114,110,0.5)');
+
+    points.filter(function(d) {
+	console.log(d[townName] + ' = ' + searchVal);
+	return d[townName] === searchVal;
+    }).style('fill', 'red');
+}
+
+$(window).on('resize', function(){
+    render();
+});
+
+
